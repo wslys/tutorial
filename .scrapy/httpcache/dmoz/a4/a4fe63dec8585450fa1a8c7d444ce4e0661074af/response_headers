@@ -1,0 +1,11 @@
+Expect-Ct: max-age=604800, report-uri="https://report-uri.cloudflare.com/cdn-cgi/beacon/expect-ct"
+Set-Cookie: __cfduid=d46d4acb300eaec7c7f0f82aff18c5dbf1521425956; expires=Tue, 19-Mar-19 02:19:16 GMT; path=/; domain=.coinmarketcap.com; HttpOnly; Secure
+Cf-Cache-Status: HIT
+Vary: Accept-Encoding
+Server: cloudflare
+Last-Modified: Fri, 12 Jan 2018 02:19:44 GMT
+Etag: "5a581b40-17"
+Date: Mon, 19 Mar 2018 02:19:16 GMT
+Cf-Ray: 3fdc7402bdef6ce2-SJC
+Content-Type: text/plain
+Accept-Ranges: bytes
