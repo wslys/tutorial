@@ -1,83 +1,156 @@
 # -*- coding:utf-8 -*- tutorial
-import scrapy #导入scrapy包
+import scrapy # 导入scrapy包
 
 from scrapy.http import Request ##一个单独的request的模块，需要跟进URL的时候，需要用它
 from tutorial.items import DmozItem, CurrencyItem
-import json, MySQLdb, time, os 
+import json, MySQLdb, time, os
+import datetime
 
-class DmozSpider(scrapy.Spider):
+class EthSpider(scrapy.Spider):
+    handle_httpstatus_list = [403, 503]
     name = 'eth'
     bash_url = 'https://etherscan.io'
 
     def start_requests(self):
-        for i in range(1, 10):
-            url = self.bash_url + "/tokens?p=" + str(i)
-            yield Request(url, self.parseOne)
+        #self.execute_sql("truncate table `tokens`;")
+        #url = self.bash_url + "/tokens?p=1"
+        #yield Request(url, self.parseOne)
+        request = Request("https://etherscan.io/token/generic-tokentxns2?contractAddress=0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0&a=&mode=", callback=self.Transfers)
+        request.meta['token'] = '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0'
+        request.meta['p'] = '1'
+        yield request
+
+        #for i in range(1, 10):
+        #    print i
+        #    url = self.bash_url + "/tokens?p=" + str(i)
+        #    yield Request(url, self.parseOne)
 
     def parseOne(self, response):
         items = []
 
+        sql = """INSERT INTO tokens(c_index, name_str, name_simple, icons, token, describes, price, changes, volume_24, market_cap, create_at) VALUES """
         for sel in response.xpath('//tbody/tr'):
-            print sel.xpath('td[1]/b/span/text()').extract()[0].strip().encode('unicode-escape').decode('string_escape')
-            print sel.xpath('td[2]/a//text()').extract()[0].strip().encode('unicode-escape').decode('string_escape')
+            # Index
+            index = sel.xpath('td[1]/b/span/text()').extract()[0].strip().encode('unicode-escape').decode('string_escape')
 
-    def coin(self, response):
-        _item = response.meta['item']
-        _max_supply = response.xpath('//body/div[4]/div[1]/div[1]/div[4]/div[1]/div[5]/div[2]/span/@data-format-value').extract()
-        
-        # TODO 
-        # print DmozSpider.objToStr(_item)
-        max_supply = ""
-        if len(_max_supply):
-            max_supply = _max_supply[0].strip().encode('unicode-escape').decode('string_escape')
-        
+            # Token
+            token_str = sel.xpath('td[2]/a/@href').extract()[0].strip().encode('unicode-escape').decode('string_escape')
+            tokenarr = token_str.split("/")
+            token = tokenarr[-1]
 
-        _item['max_supply'] = max_supply
-        sql = """INSERT INTO currencys(c_index, name, market_cap, price, volume_24h, circulating_supply, change_24h, max_supply, url, create_at) VALUES """     
-        sql += "(" + _item['index'] + ", '" + _item['name'] + "', '" + _item['market_cap'] + "', '" + _item['price'] + "', " + _item['volume_24h'] + ", '" + _item['circulating_supply'] + "', '" + _item['change_24h'] + "', '" + _item['change_24h'] + "', '" + _item['url'] + "', '" + time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()) + "')"
-        
-        self.execute_sql(sql)
+            # Img
+            icons = sel.xpath('td[2]/a/img/@src').extract()[0].strip().encode('unicode-escape').decode('string_escape')
 
-    def singleMarkets(self, response):
-        type_name = str(response.meta['type_name'])
-        _index = str(response.meta['index'])
+            # Name And Describes
+            name_strs = sel.xpath('td[3]/h5/a/text()').extract()[0].strip().encode('unicode-escape').decode('string_escape')
+            name_list = name_strs.split('(')
+            name_str  = name_list[0]
+            name_str2 = name_list[-1].split(')')
+            name_simple = name_str2[0]
 
-        sql = """INSERT INTO markets(c_index, currency_name, source, pair, volume, price, volumes, create_at) VALUES """
-        i = 1
-        for sel in response.xpath('//tbody/tr'):
-            Index      = sel.xpath('td[1]/text()').extract()[0].strip().encode('unicode-escape').decode('string_escape')
-            Source     = sel.xpath('td[2]/@data-sort').extract()[0].strip().encode('unicode-escape').decode('string_escape')
-            Pair       = sel.xpath('td[3]/@data-sort').extract()[0].strip().encode('unicode-escape').decode('string_escape')
-            Volume_24H = sel.xpath('td[4]/@data-sort').extract()[0].strip().encode('unicode-escape').decode('string_escape')
-            Price      = sel.xpath('td[5]/@data-sort').extract()[0].strip().encode('unicode-escape').decode('string_escape')
-            Volume_S   = sel.xpath('td[6]/@data-sort').extract()[0].strip().encode('unicode-escape').decode('string_escape')
+            # Describes
+            describes = ""
+            if len(sel.xpath('td[3]/small/font/text()').extract()) > 0:
+                describes = sel.xpath('td[3]/small/font/text()').extract()[0].strip().encode('unicode-escape').decode('string_escape')
 
-            if i>100:break
-            sql += "('" + _index + "', '" + type_name + "', '" + Source + "', '" + Pair + "', '" + Volume_24H + "', " + Price + ", '" + Volume_S + "', '" + time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()) + "'),"
-            i += 1  
+            # Price
+            price = sel.xpath('td[5]/span/text()').extract()[0].strip().encode('unicode-escape').decode('string_escape')
 
+            # %Change
+            change = ""
+            if sel.xpath('td[6]/font'):
+                change = sel.xpath('td[6]/font/text()').extract()[0].strip().encode('unicode-escape').decode('string_escape')
+            else:
+                change = sel.xpath('td[6]/text()').extract()[0].strip().encode('unicode-escape').decode('string_escape')
+
+            # Volume (24h)
+            volume_24h = sel.xpath('td[7]/text()').extract()[0].strip().encode('unicode-escape').decode('string_escape')
+
+            # MarketCap
+            market_cap = sel.xpath('td[8]/text()').extract()[0].strip().encode('unicode-escape').decode('string_escape')
+
+            _time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+            #print "================ Start ==========================="
+            #print index
+            #print index + " : Token : " + token
+            #print index + " : Img : " + icons
+            #print index + ' : Name Simple : ' + name_simple
+            #print index + ' : Name_Str : ' + name_str
+            #print index + " : describes : " + describes
+            #print index + " : Price : " + price
+            #print index + " : Change 1 : " + change
+            #print index + " : Volume : " + volume_24h
+            #print index + " : MarketCap : " + market_cap
+            #print index + " : time : " + _time
+            #print "================  End  ==========================="
+
+            # c_index, name_str, name_simple, icons, token, describes, price, change, volume_24, market_cap, create_at
+            sql += "(" + index + ", '" + name_str + "', '" + name_simple + "', '" + icons + "', '" + token + "', '" + describes.replace("""'""", """\\'""") + "', '" + price + "', '" + change + "', '" + volume_24h + "', '" + market_cap + "', '" + _time + "'),"
+
+            #for i in range(1, 10):
+            #    url = self.bash_url + "/token/generic-tokentxns2?contractAddress=" + token + "&p=" + str(i)
+            #    request = Request(url, callback=self.transfers)
+            #    request.meta['token'] = token
+            #    request.meta['p'] = str(i)
+            #    yield request
+
+        for i in range(1, 10):
+                url = self.bash_url + "/token/generic-tokentxns2?contractAddress=0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0&a=&mode=&p=" + str(i)
+                request = Request(url, callback=self.Transfers)
+                request.meta['token'] = token
+                request.meta['p'] = str(i)
+                yield request
+        #print sql[:-1]
         self.execute_sql(sql[:-1])
 
-    def historicalData(self, response):
-        type_name = str(response.meta['type_name'])
-        _index = str(response.meta['index'])
-        
-        sql = """INSERT INTO historical_data(c_index, currency_name, old_date, open, hight, low, close, volume, market_cap, create_at) VALUES """
-        for sel in response.xpath('//tbody/tr'):
-            Old_date  = sel.xpath('td[1]/text()').extract()[0].strip().encode('unicode-escape').decode('string_escape')
-            Open      = sel.xpath('td[2]/@data-format-value').extract()[0].strip().encode('unicode-escape').decode('string_escape')
-            High      = sel.xpath('td[3]/@data-format-value').extract()[0].strip().encode('unicode-escape').decode('string_escape')
-            Low       = sel.xpath('td[4]/@data-format-value').extract()[0].strip().encode('unicode-escape').decode('string_escape')
-            Close     = sel.xpath('td[5]/@data-format-value').extract()[0].strip().encode('unicode-escape').decode('string_escape')
-            Volume    = sel.xpath('td[6]/@data-format-value').extract()[0].strip().encode('unicode-escape').decode('string_escape')
-            MarketCap = sel.xpath('td[7]/@data-format-value').extract()[0].strip().encode('unicode-escape').decode('string_escape')
-            
-            timeStamp = int(time.mktime(time.strptime(Old_date, "%b %d, %Y")))
-            localTime = time.localtime(timeStamp) 
-            strTime   = time.strftime("%Y-%m-%d %H:%M:%S", localTime) 
-            
-            sql += "('" + _index + "', '" + type_name + "', '" + strTime + "', '" + Open + "', '" + High + "', " + Low + ", '" + Close + "', '" + Volume + "', '" + MarketCap + "', '" + time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()) + "'),"
-            
+    def Transfers(self, response):
+        token = str(response.meta['token'])
+        # fo = open("foo.txt", "w")
+        # fo.write(response.body)
+        kt = 0
+        sql = """INSERT INTO token_transfers(Token, Tx_Hash, Age, From, type, To, Quantity, create_at) VALUES """
+        for sel in response.xpath('//table/tr'):
+            # Index
+            if kt == 0:
+                kt = 1
+                continue
+
+            # TxHash
+            TxHash = sel.xpath('td[1]/span/a/text()').extract()[0].strip().encode('unicode-escape').decode('string_escape')
+
+            # Age
+            Age     = sel.xpath('td[2]/span/@title').extract()[0].strip().encode('unicode-escape').decode('string_escape')
+            Age_Str = sel.xpath('td[2]/span/text()').extract()[0].strip().encode('unicode-escape').decode('string_escape')
+
+            date_time = self.string_toDatetime(Age)
+
+            # From
+            From = sel.xpath('td[3]/span/a/text()').extract()[0].strip().encode('unicode-escape').decode('string_escape')
+
+            # type_img
+            type_img = sel.xpath('td[4]/img/@src').extract()[0].strip().encode('unicode-escape').decode('string_escape')
+
+            # To
+            To = sel.xpath('td[5]/span/a/text()').extract()[0].strip().encode('unicode-escape').decode('string_escape')
+
+            # Quantity
+            Quantity = sel.xpath('td[6]/text()').extract()[0].strip().encode('unicode-escape').decode('string_escape')
+
+            _time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+
+            #print " : TxHash : " + TxHash
+            #print " : Age : " + date_time
+            #print " : Age_Str : " + Age_Str
+            #print " : From : " + From
+            #print " : type_img : " + type_img
+            #print " : To : " + To
+            #print " : Quantity : " + Quantity
+            #print " ========================================================= "
+
+            # Token, Tx_Hash, Age, From, type, To, Quantity, create_at
+            sql += "(" + token + ", '" + TxHash + "', '" + date_time + "', '" + From + "', '" + type + "', '" + To + "', '" + Quantity + "', '" + _time + "'),"
+
+        print sql[:-1]
         self.execute_sql(sql[:-1])
 
     @staticmethod
@@ -86,12 +159,19 @@ class DmozSpider(scrapy.Spider):
 
     @staticmethod
     def execute_sql(sql):
-        db = MySQLdb.connect("localhost", "root", "123456", "tutorial")
+        db = MySQLdb.connect("localhost", "root", "123456", "etherscan_db")
         cursor = db.cursor()
         try:
+            # print "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
             cursor.execute(sql)
             db.commit()
         except:
+            # print "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
             db.rollback()
 
         db.close()
+
+    # 把字符串转成datetime
+    @staticmethod
+    def string_toDatetime(string):
+        return datetime.datetime.strptime(string, "%b-%d-%Y %I:%M:%S %p")
