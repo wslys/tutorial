@@ -18,7 +18,8 @@ class DmozSpider(scrapy.Spider):
         items = []
 
         for sel in response.xpath('//tbody/tr'):
-            print sel
+            print sel.xpath('td[1]/b/span/text()').extract()[0].strip().encode('unicode-escape').decode('string_escape')
+            print sel.xpath('td[2]/a//text()').extract()[0].strip().encode('unicode-escape').decode('string_escape')
 
     def coin(self, response):
         _item = response.meta['item']
