@@ -6,46 +6,26 @@ from tutorial.items import DmozItem, CurrencyItem
 import json, MySQLdb, time, os
 import datetime
 
-class EthSpider(scrapy.Spider):
+class Eth2Spider(scrapy.Spider):
     handle_httpstatus_list = [403, 503]
-    name = 'eth'
+    name = 'eth2'
     bash_url = 'https://etherscan.io'
 
     def start_requests(self):
-        #self.execute_sql("truncate table `tokens`;")
-        #url = self.bash_url + "/tokens?p=1"
-        #yield Request(url, self.parseOne)
+        url = self.bash_url + "/tokens"
+        yield Request(url, self.start_response)
 
-        #request = Request("https://etherscan.io/token/generic-tokentxns2?contractAddress=0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0&a=&mode=", callback=self.Transfers)
-        #request.meta['token'] = '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0'
-        #request.meta['p'] = '1'
-        #yield request
+    def start_response(self, response):
+        start = response.xpath('//body/div/div[4]/div[2]/div[2]/p/span/b[1]/text()').extract()[0].strip().encode('unicode-escape').decode('string_escape')
+        end = response.xpath('//body/div/div[4]/div[2]/div[2]/p/span/b[2]/text()').extract()[0].strip().encode('unicode-escape').decode('string_escape')
 
-        #request = Request("https://etherscan.io/token/generic-tokenholders2?a=0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0&s=1E%2b27&p=2", callback=self.Holders)
-        #request.meta['token'] = '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0'
-        #request.meta['p'] = '1'
-        #yield request
-
-        # https://etherscan.io/token/generic-tokentxns2?contractAddress=0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0&a=0xa12431d0b9db640034b0cdfceef9cce161e62be4&mode=&p=2
-        # https://etherscan.io/token/generic-tokentxns2?contractAddress=0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0&a=0xa12431d0b9db640034b0cdfceef9cce161e62be4&mode=
-
-
-
-        # https://etherscan.io/token/generic-tokentxns2?contractAddress=0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0&a=0xd0a6e6c54dbc68db5db3a091b171a77407ff7ccf&mode=
-        # https://etherscan.io/token/generic-tokentxns2?contractAddress=0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0&a=0xd0a6e6c54dbc68db5db3a091b171a77407ff7ccf&mode=&p=2
-        request = Request("https://etherscan.io/token/generic-tokentxns2?contractAddress=0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0&a=0xd0a6e6c54dbc68db5db3a091b171a77407ff7ccf&mode=&p=2", callback=self.HoldersTransfers)
-        request.meta['token'] = '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0'
-        request.meta['p'] = '1'
-        yield request
-
-        #for i in range(1, 10):
-        #    print i
-        #    url = self.bash_url + "/tokens?p=" + str(i)
-        #    yield Request(url, self.parseOne)
+        for i in range(int(start), int(end) + 1):
+            url = self.bash_url + "/tokens?p=" + str(i)
+            request = Request(url, self.parseOne)
+            request.meta['end'] = end
+            yield request
 
     def parseOne(self, response):
-        items = []
-
         sql = """INSERT INTO tokens(c_index, name_str, name_simple, icons, token, describes, price, changes, volume_24, market_cap, create_at) VALUES """
         for sel in response.xpath('//tbody/tr'):
             # Index
@@ -105,21 +85,58 @@ class EthSpider(scrapy.Spider):
             # c_index, name_str, name_simple, icons, token, describes, price, change, volume_24, market_cap, create_at
             sql += "(" + index + ", '" + name_str + "', '" + name_simple + "', '" + icons + "', '" + token + "', '" + describes.replace("""'""", """\\'""") + "', '" + price + "', '" + change + "', '" + volume_24h + "', '" + market_cap + "', '" + _time + "'),"
 
-            #for i in range(1, 10):
-            #    url = self.bash_url + "/token/generic-tokentxns2?contractAddress=" + token + "&p=" + str(i)
-            #    request = Request(url, callback=self.transfers)
-            #    request.meta['token'] = token
-            #    request.meta['p'] = str(i)
-            #    yield request
+            #url = self.bash_url + "/token/" + token + "#tokenInfo"
+            #request = Request(url, callback=self.TokenInfo)
+            #request.meta['token'] = token
+            #yield request
 
-        for i in range(1, 10):
-                url = self.bash_url + "/token/generic-tokentxns2?contractAddress=0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0&a=&mode=&p=" + str(i)
-                request = Request(url, callback=self.Transfers)
-                request.meta['token'] = token
-                request.meta['p'] = str(i)
-                yield request
-        #print sql[:-1]
         self.execute_sql(sql[:-1])
+
+    def TokenInfo(self, response):
+        token = str(response.meta['token'])
+
+        table1_arr = response.xpath('//body/div/div[4]/div[1]/div[1]/table/tr')
+        table2_arr = response.xpath('//body/div/div[4]/div[1]/div[2]/table/tr')
+        TotalSupply     = ""
+        Value_Per_Token = ""
+        Token_Holders   = ""
+        NO_Of_Transfers = ""
+
+        ERC20_Contract  = ""
+        decimals        = ""
+
+        if len(table1_arr)>0:
+            if table1_arr[0].xpath('td[2]'):
+                TotalSupply = table1_arr[0].xpath('td[2]/text()').extract()[0].strip().encode('unicode-escape').decode('string_escape')
+
+            if table1_arr[1].xpath('td[2]'):
+                Value_Per_Token = table1_arr[1].xpath('td[2]/text()').extract()[0].strip().encode('unicode-escape').decode('string_escape')
+
+            if table1_arr[2].xpath('td[2]'):
+                Token_Holders = table1_arr[2].xpath('td[2]/text()').extract()[0].strip().encode('unicode-escape').decode('string_escape')
+
+            if table1_arr[3].xpath('td[2]'):
+                NO_Of_Transfers = table1_arr[3].xpath('td[2]/text()').extract()[0].strip().encode('unicode-escape').decode('string_escape')
+
+        if len(table2_arr)>0:
+            if table1_arr[0].xpath('td[0]'):
+                ERC20_Contract = table1_arr[0].xpath('td[0]/a/text()').extract()[0].strip().encode('unicode-escape').decode('string_escape')
+
+            if table1_arr[1].xpath('td[1]'):
+                decimals = table1_arr[1].xpath('td[1]/text()').extract()[0].strip().encode('unicode-escape').decode('string_escape')
+
+        print "================== |||||||||||||||||||||||||||| ================================="
+        print ":token:" + token
+        print ":TotalSupply:" + TotalSupply
+        print ":Value_Per_Token:" + Value_Per_Token
+        print ":Token_Holders:" + Token_Holders
+        print ":NO_Of_Transfers:" + NO_Of_Transfers
+
+        print ":ERC20_Contract:" + ERC20_Contract
+        print ":decimals:" + decimals
+
+        print "================== |||||||||||||||||||||||||||| ================================="
+        # TODO 数据了插入
 
     def Transfers(self, response):
         token = str(response.meta['token'])
