@@ -19,57 +19,23 @@ truncate table `currencys`;
 scrapy crawl eth
 
 
+parity account new
+0xf1e142fe2d6a682f8cc0d986dcfa7b8419464134
 
 
 
+--reseal-on-txs=[SET]
+        Specify which transactions should force the node to reseal a block. SET is
+        one of: none - never reseal on new transactions; own - reseal only on a new
+        local transaction; ext - reseal only on a new external transaction; all -
+        reseal on all new transactions. (default: own).
 
 
 
-
-
-https://etherscan.io/token/generic-tokentxns2?contractAddress=0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0&a=&mode=
-https://etherscan.io/token/generic-tokentxns2?contractAddress=0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0&a=&mode=&p=2
-
-
-0x00000000000000000000000000000000000000b1
-0xd0a6e6c54dbc68db5db3a091b171a77407ff7ccf
-
-
-
-
-
-
-
-
-
-Token Transfers:
-https://etherscan.io/token/generic-tokentxns2?contractAddress=0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0&p=1
-https://etherscan.io/token/generic-tokentxns2?contractAddress=0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0&p=8
-
-Token Holders:
-https://etherscan.io/token/generic-tokenholders2?a=0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0&s=1E%2b27&p=1
-
-
-
-
-
-https://etherscan.io/token/generic-tokenholders2?a=0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0&s=1E%2b27&p=1
-https://etherscan.io/token/generic-tokenholders2?a=0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0&s=1000000000000000000000000000
-
-
-
-
-
-
-
-https://etherscan.io/token/0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0#balances
-https://etherscan.io/token/generic-tokentxns2?contractAddress=0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0&a=0x00000000000000000000000000000000000000b1&mode=
-
-
-
-
-https://etherscan.io/token/generic-tokentxns2?contractAddress=0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0&a=0x61d5a4d5bd270e59e9320243e574288e2a199fed&mode=
-https://etherscan.io/token/generic-tokentxns2?contractAddress=0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0&a=0xde0c163a1c783b4690ba6c86aeb9102bd08b6a44&mode=
+--scale-verifiers
+        Automatically scale amount of verifier threads based on workload. Not
+        guaranteed to be faster.
+        根据工作量自动调整验证者线程的数量。不是保证更快。
 
 
 
